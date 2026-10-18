@@ -48,7 +48,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const CATS=['Tops','Calças','Vestidos','Saias','Casacos','Sapatos','Acessórios'];
 const sb=supabase.createClient(CFG.url,CFG.key);
-let me=null,D={pr:{},pc:[],lk:[],li:[],cm:[]},view='feed',draft={ids:[],r:null},open={},pf='all',cat='Todas',pid=null,mode='login';
+let me=null,D={pr:{},pc:[],lk:[],li:[],cm:[],fl:[]},feedTab='f',view='feed',draft={ids:[],r:null},open={},pf='all',cat='Todas',pid=null,mode='login';
 const H=id=>D.pr[id]?.handle||'?';
 const piece=id=>D.pc.find(p=>p.id===id);
 const ok=r=>{if(r.error){alert(r.error.message);return false}return true};
@@ -56,19 +56,26 @@ const tile=p=>p?`<div class="tile" style="background-color:#ddd;${p.image_url?`b
 const collage=ids=>{const ps=ids.slice(0,4).map(piece).filter(Boolean);return`<div class="col n${ps.length}">${ps.map(tile).join('')}</div>`};
 const av=u=>`<div class="av">${esc((u||'?')[0]).toUpperCase()}</div>`;
 async function load(){
- const [pr,pc,lk,li,cm]=await Promise.all([sb.from('profiles').select('*'),sb.from('pieces').select('*').order('created_at',{ascending:false}),sb.from('looks').select('*').order('created_at',{ascending:false}),sb.from('likes').select('*'),sb.from('comments').select('*').order('created_at')]);
- D.pr=Object.fromEntries((pr.data||[]).map(p=>[p.id,p]));D.pc=pc.data||[];D.lk=lk.data||[];D.li=li.data||[];D.cm=cm.data||[];
+ const [pr,pc,lk,li,cm,fl]=await Promise.all([sb.from('profiles').select('*'),sb.from('pieces').select('*').order('created_at',{ascending:false}),sb.from('looks').select('*').order('created_at',{ascending:false}),sb.from('likes').select('*'),sb.from('comments').select('*').order('created_at'),sb.from('follows').select('*')]);
+ D.pr=Object.fromEntries((pr.data||[]).map(p=>[p.id,p]));D.pc=pc.data||[];D.lk=lk.data||[];D.li=li.data||[];D.cm=cm.data||[];D.fl=fl.data||[];
 }
 const refresh=async()=>{await load();render()};
 function nav(){const t=[['feed','🏠','Início'],['closet','👗','Closet'],['create','✨','Criar look'],['profile','👤','Perfil']];
 $('#nav').innerHTML=t.map(([v,i,l])=>`<button data-a="nav" data-v="${v}" class="${view===v?'on':''}"><b>${i}</b>${l}</button>`).join('')}
 function lookCard(l){const likes=D.li.filter(x=>x.look_id===l.id),liked=likes.some(x=>x.user_id===me.id),cms=D.cm.filter(c=>c.look_id===l.id),src=l.remix_of&&D.lk.find(x=>x.id===l.remix_of),au=H(l.author);
-return`<div class="card"><div class="hd" data-a="prof" data-u="${l.author}" style="cursor:pointer">${av(au)}<div><b>@${esc(au)}</b><small>${src?'remix de @'+esc(H(src.author)):'look'}</small></div></div>
+return`<div class="card"><div class="hd" data-a="prof" data-u="${l.author}" style="cursor:pointer">${av(au)}<div><b>@${esc(au)}</b><small>${src?'remix de @'+esc(H(src.author)):'look'}</small></div>${l.author!==me.id?`<span style="margin-left:auto">${fbtn(l.author)}</span>`:''}</div>
 ${collage(l.piece_ids)}
 <div class="act"><button class="lk ${liked?'on':''}" data-a="like" data-id="${l.id}">${liked?'♥':'♡'} ${likes.length}</button><button data-a="cm" data-id="${l.id}">💬 ${cms.length}</button><button data-a="remix" data-id="${l.id}">🔁 Remixar</button>${l.author===me.id?`<button data-a="del" data-id="${l.id}" style="margin-left:auto">🗑</button>`:''}<button data-a="share" data-id="${l.id}" ${l.author===me.id?'':'style="margin-left:auto"'}>↗</button></div>
 <div class="cap"><b>@${esc(au)}</b>${esc(l.caption)}</div>
 ${open[l.id]?`<div class="cm">${cms.map(c=>`<p><b>@${esc(H(c.user_id))}</b> ${esc(c.body)}</p>`).join('')}<form data-a="comment" data-id="${l.id}"><input placeholder="Comente…" maxlength="200"><button class="btn">Enviar</button></form></div>`:''}</div>`}
-const vFeed=()=>D.lk.map(lookCard).join('')||'<p class="mu">Nenhum look ainda. Seja a primeira a publicar!</p>';
+const isF=u=>D.fl.some(f=>f.follower===me.id&&f.following===u);
+const fbtn=u=>`<button class="pill ${isF(u)?'on':''}" data-a="follow" data-u="${u}">${isF(u)?'Seguindo':'Seguir'}</button>`;
+function vFeed(){const fo=feedTab==='f',none=!D.fl.some(f=>f.follower===me.id);
+const tabs=`<div class="row"><button class="pill ${fo?'on':''}" data-a="ftab" data-v="f">Seguindo</button><button class="pill ${!fo?'on':''}" data-a="ftab" data-v="d">Descobrir</button></div>`;
+const ls=fo?D.lk.filter(l=>l.author===me.id||isF(l.author)):D.lk;
+const sug=Object.values(D.pr).filter(p=>p.id!==me.id&&!isF(p.id)).slice(0,8);
+const sh=(!fo||none)&&sug.length?`<div class="card pad"><b>Pessoas para seguir</b>${sug.map(p=>`<div class="hd" style="padding:8px 0">${av(p.handle)}<div data-a="prof" data-u="${p.id}" style="cursor:pointer;flex:1"><b>@${esc(p.handle)}</b></div>${fbtn(p.id)}</div>`).join('')}</div>`:'';
+return tabs+sh+(ls.map(lookCard).join('')||`<p class="mu">${fo?'Ainda não há looks por aqui. Siga pessoas para ver os looks delas!':'Nenhum look ainda.'}</p>`)}
 function vCloset(){const mine=D.pc.filter(p=>p.owner===me.id),others=D.pc.filter(p=>p.owner!==me.id);
 return`<h2>Meu closet</h2><div class="card pad"><b>Adicionar peça ao closet</b><div class="row"><input type="file" id="f" accept="image/*"></div><div class="row"><input id="pn" placeholder="Nome da peça (ex: Saia plissada)" maxlength="40"></div><div class="row"><select id="pc">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></div><button class="btn" data-a="addp" style="width:100%">Adicionar</button></div>
 <div class="grid">${mine.map(tile).join('')}</div>${mine.length?'':'<p class="mu">Seu closet está vazio. Envie a primeira foto!</p>'}
@@ -79,8 +86,8 @@ return`<h2>${draft.r?'Remix de look':'Montar look'}</h2><div class="card pad">${
 <div class="row"><button class="pill ${pf==='all'?'on':''}" data-a="pf" data-v="all">Todas as peças</button><button class="pill ${pf==='mine'?'on':''}" data-a="pf" data-v="mine">Minhas</button></div>
 <div class="row">${['Todas',...CATS].map(c=>`<button class="pill ${cat===c?'on':''}" data-a="cat" data-v="${c}">${c}</button>`).join('')}</div>
 <div class="grid">${list.map(p=>`<div class="pk ${draft.ids.includes(p.id)?'sel':''}" data-a="pick" data-id="${p.id}">${tile(p)}</div>`).join('')}</div>`}
-function vProfile(){const u=pid||me.id,own=u===me.id,ls=D.lk.filter(l=>l.author===u),n=D.pc.filter(p=>p.owner===u).length,lk=ls.reduce((a,l)=>a+D.li.filter(x=>x.look_id===l.id).length,0);
-return`<div class="pad" style="text-align:center"><div class="av" style="width:72px;height:72px;font-size:30px;margin:auto">${esc(H(u)[0]).toUpperCase()}</div><h2>@${esc(H(u))}</h2><p class="mu">${ls.length} looks · ${n} peças · ${lk} curtidas</p>${own?'<button class="btn g" data-a="logout">Sair</button>':'<button class="btn g" data-a="nav" data-v="feed">← Voltar</button>'}</div>${ls.map(lookCard).join('')||'<p class="mu" style="text-align:center">Nenhum look publicado.</p>'}`}
+function vProfile(){const u=pid||me.id,own=u===me.id,ls=D.lk.filter(l=>l.author===u),n=D.pc.filter(p=>p.owner===u).length,fers=D.fl.filter(f=>f.following===u).length,fing=D.fl.filter(f=>f.follower===u).length;
+return`<div class="pad" style="text-align:center"><div class="av" style="width:72px;height:72px;font-size:30px;margin:auto">${esc(H(u)[0]).toUpperCase()}</div><h2>@${esc(H(u))}</h2><p class="mu"><b>${ls.length}</b> looks · <b>${fers}</b> seguidoras · <b>${fing}</b> seguindo · ${n} peças</p>${own?'<button class="btn g" data-a="logout">Sair</button>':`${fbtn(u)} <button class="btn g" data-a="nav" data-v="feed">← Voltar</button>`}</div>${ls.map(lookCard).join('')||'<p class="mu" style="text-align:center">Nenhum look publicado.</p>'}`}
 function render(){nav();$('#app').innerHTML=`<header><span class="logo">Closelly</span><span class="mu">@${esc(H(me.id))}</span></header>`+({feed:vFeed,closet:vCloset,create:vCreate,profile:vProfile}[view])()}
 const go=v=>{view=v;pid=null;render();scrollTo(0,0)};
 function authUI(msg=''){const s=mode==='signup';$('#modal').innerHTML=`<div class="modal"><div><div class="logo" style="font-size:40px">Closelly</div><p class="mu">Monte looks, compartilhe e inspire outras mulheres.</p>${s?'<input id="ah" placeholder="@usuario (a-z, 0-9, _)" maxlength="20"><br><br>':''}<input id="ae" type="email" placeholder="E-mail"><br><br><input id="ap" type="password" placeholder="Senha (mín. 6 caracteres)"><p class="mu" style="color:var(--ac)">${esc(msg)}</p><button class="btn" data-a="auth" style="width:100%">${s?'Criar conta':'Entrar'}</button><p class="mu" data-a="mode" style="cursor:pointer;margin-top:14px">${s?'Já tem conta? Entrar':'Primeira vez? Criar conta'}</p></div></div>`}
@@ -99,6 +106,8 @@ else if(a==='logout'){await sb.auth.signOut();location.reload()}
 else if(a==='nav')go(t.dataset.v);
 else if(a==='prof'){view='profile';pid=t.dataset.u;render();scrollTo(0,0)}
 else if(a==='like'){const liked=D.li.some(x=>x.look_id===id&&x.user_id===me.id);const r=liked?await sb.from('likes').delete().match({look_id:id,user_id:me.id}):await sb.from('likes').insert({look_id:id});if(ok(r))refresh()}
+else if(a==='follow'){const u=t.dataset.u,r=isF(u)?await sb.from('follows').delete().match({follower:me.id,following:u}):await sb.from('follows').insert({following:u});if(ok(r))refresh()}
+else if(a==='ftab'){feedTab=t.dataset.v;render()}
 else if(a==='cm'){open[id]=!open[id];render()}
 else if(a==='remix'){draft={ids:[...l.piece_ids],r:id,cap:''};view='create';render();scrollTo(0,0)}
 else if(a==='del'){if(confirm('Apagar este look?')&&ok(await sb.from('looks').delete().eq('id',id)))refresh()}
