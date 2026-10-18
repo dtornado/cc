@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Closelly</title>
+<style>
+:root{--bg:#fbf7f4;--sf:#fff;--tx:#2a1f25;--mu:#8a7a82;--ac:#d6457a;--ac2:#f2a65a;--bd:#eee3e6;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161015;--sf:#221a21;--tx:#f5ecf0;--mu:#a5929c;--bd:#352a33;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161015;--sf:#221a21;--tx:#f5ecf0;--mu:#a5929c;--bd:#352a33;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:520px;margin:0 auto;padding:0 12px 90px}
+header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:14px 4px 10px;z-index:5;display:flex;justify-content:space-between;align-items:center}
+.logo{font-family:Georgia,serif;font-size:28px;font-style:italic;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);display:flex;justify-content:center;padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px));z-index:6}
+nav button{flex:1;max-width:100px;background:none;border:0;color:var(--mu);font-size:11px;padding:4px;cursor:pointer}
+nav button b{display:block;font-size:22px;font-weight:400}nav button.on{color:var(--ac)}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:18px;margin-bottom:16px;overflow:hidden}
+.hd{display:flex;align-items:center;gap:10px;padding:12px}
+.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.hd small{display:block;color:var(--mu);font-size:12px}
+.col{display:grid;gap:3px;grid-template-columns:1fr 1fr;padding:0 3px}
+.col.n1{grid-template-columns:1fr}.col.n3 .tile:first-child{grid-column:span 2}
+.tile{position:relative;aspect-ratio:1;background-size:cover;background-position:center;border-radius:12px;display:grid;place-items:center;font-size:44px;overflow:hidden}
+.tile span{position:absolute;left:6px;bottom:6px;font-size:11px;background:rgba(0,0,0,.55);color:#fff;border-radius:8px;padding:2px 7px;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act{display:flex;gap:4px;padding:8px 8px 0}
+.act button,.btn{background:none;border:0;color:var(--tx);font-size:14px;cursor:pointer;padding:6px 10px;border-radius:20px}
+.act button:hover{background:var(--bg)}.act .lk.on{color:var(--ac)}
+.btn{background:var(--ac);color:#fff;font-weight:600;padding:10px 18px}.btn.g{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
+.cap{padding:4px 14px 12px;font-size:14px;line-height:1.4}.cap b{margin-right:6px}
+.cm{padding:0 14px 12px;font-size:13px}.cm p{margin:4px 0}
+.cm form{display:flex;gap:6px;margin-top:8px}
+input,select,textarea{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:10px;font:inherit}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pk{cursor:pointer;border:3px solid transparent;border-radius:14px}.pk.sel{border-color:var(--ac)}
+.tag{font-size:12px;color:var(--ac);padding:0 14px}
+h2{margin:8px 4px;font-size:18px}.mu{color:var(--mu);font-size:13px;margin:4px}
+.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.pill{border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:13px}.pill.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:20;padding:20px}
+.modal>div{background:var(--sf);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center}
+.pad{padding:12px}
+</style></head><body>
+<div id="app"></div><nav id="nav"></nav><div id="modal"></div>
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CATS=['Tops','Calças','Vestidos','Saias','Casacos','Sapatos','Acessórios'];
+const sb=supabase.createClient(CFG.url,CFG.key);
+let me=null,D={pr:{},pc:[],lk:[],li:[],cm:[]},view='feed',draft={ids:[],r:null},open={},pf='all',cat='Todas',pid=null,mode='login';
+const H=id=>D.pr[id]?.handle||'?';
+const piece=id=>D.pc.find(p=>p.id===id);
+const ok=r=>{if(r.error){alert(r.error.message);return false}return true};
+const tile=p=>p?`<div class="tile" style="background-color:#ddd;${p.image_url?`background-image:url('${esc(p.image_url)}')`:''}"><span>${esc(p.name)}</span></div>`:'';
+const collage=ids=>{const ps=ids.slice(0,4).map(piece).filter(Boolean);return`<div class="col n${ps.length}">${ps.map(tile).join('')}</div>`};
+const av=u=>`<div class="av">${esc((u||'?')[0]).toUpperCase()}</div>`;
+async function load(){
+ const [pr,pc,lk,li,cm]=await Promise.all([sb.from('profiles').select('*'),sb.from('pieces').select('*').order('created_at',{ascending:false}),sb.from('looks').select('*').order('created_at',{ascending:false}),sb.from('likes').select('*'),sb.from('comments').select('*').order('created_at')]);
+ D.pr=Object.fromEntries((pr.data||[]).map(p=>[p.id,p]));D.pc=pc.data||[];D.lk=lk.data||[];D.li=li.data||[];D.cm=cm.data||[];
+}
+const refresh=async()=>{await load();render()};
+function nav(){const t=[['feed','🏠','Início'],['closet','👗','Closet'],['create','✨','Criar look'],['profile','👤','Perfil']];
+$('#nav').innerHTML=t.map(([v,i,l])=>`<button data-a="nav" data-v="${v}" class="${view===v?'on':''}"><b>${i}</b>${l}</button>`).join('')}
+function lookCard(l){const likes=D.li.filter(x=>x.look_id===l.id),liked=likes.some(x=>x.user_id===me.id),cms=D.cm.filter(c=>c.look_id===l.id),src=l.remix_of&&D.lk.find(x=>x.id===l.remix_of),au=H(l.author);
+return`<div class="card"><div class="hd" data-a="prof" data-u="${l.author}" style="cursor:pointer">${av(au)}<div><b>@${esc(au)}</b><small>${src?'remix de @'+esc(H(src.author)):'look'}</small></div></div>
+${collage(l.piece_ids)}
+<div class="act"><button class="lk ${liked?'on':''}" data-a="like" data-id="${l.id}">${liked?'♥':'♡'} ${likes.length}</button><button data-a="cm" data-id="${l.id}">💬 ${cms.length}</button><button data-a="remix" data-id="${l.id}">🔁 Remixar</button>${l.author===me.id?`<button data-a="del" data-id="${l.id}" style="margin-left:auto">🗑</button>`:''}<button data-a="share" data-id="${l.id}" ${l.author===me.id?'':'style="margin-left:auto"'}>↗</button></div>
+<div class="cap"><b>@${esc(au)}</b>${esc(l.caption)}</div>
+${open[l.id]?`<div class="cm">${cms.map(c=>`<p><b>@${esc(H(c.user_id))}</b> ${esc(c.body)}</p>`).join('')}<form data-a="comment" data-id="${l.id}"><input placeholder="Comente…" maxlength="200"><button class="btn">Enviar</button></form></div>`:''}</div>`}
+const vFeed=()=>D.lk.map(lookCard).join('')||'<p class="mu">Nenhum look ainda. Seja a primeira a publicar!</p>';
+function vCloset(){const mine=D.pc.filter(p=>p.owner===me.id),others=D.pc.filter(p=>p.owner!==me.id);
+return`<h2>Meu closet</h2><div class="card pad"><b>Adicionar peça ao closet</b><div class="row"><input type="file" id="f" accept="image/*"></div><div class="row"><input id="pn" placeholder="Nome da peça (ex: Saia plissada)" maxlength="40"></div><div class="row"><select id="pc">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></div><button class="btn" data-a="addp" style="width:100%">Adicionar</button></div>
+<div class="grid">${mine.map(tile).join('')}</div>${mine.length?'':'<p class="mu">Seu closet está vazio. Envie a primeira foto!</p>'}
+<h2>Explorar peças</h2><div class="grid">${others.map(p=>`<div>${tile(p)}<button class="pill" style="width:100%;margin-top:4px" data-a="use" data-id="${p.id}">+ Usar</button></div>`).join('')}</div>`}
+function vCreate(){const list=D.pc.filter(p=>(pf==='all'||p.owner===me.id)&&(cat==='Todas'||p.category===cat));
+return`<h2>${draft.r?'Remix de look':'Montar look'}</h2><div class="card pad">${draft.ids.length?collage(draft.ids):'<p class="mu">Escolha peças abaixo para compor seu look.</p>'}
+<input id="cp" placeholder="Legenda do look…" maxlength="140" style="margin-top:10px" value="${esc(draft.cap||'')}"><div class="row"><button class="btn" data-a="pub">Publicar</button><button class="btn g" data-a="clear">Limpar</button></div></div>
+<div class="row"><button class="pill ${pf==='all'?'on':''}" data-a="pf" data-v="all">Todas as peças</button><button class="pill ${pf==='mine'?'on':''}" data-a="pf" data-v="mine">Minhas</button></div>
+<div class="row">${['Todas',...CATS].map(c=>`<button class="pill ${cat===c?'on':''}" data-a="cat" data-v="${c}">${c}</button>`).join('')}</div>
+<div class="grid">${list.map(p=>`<div class="pk ${draft.ids.includes(p.id)?'sel':''}" data-a="pick" data-id="${p.id}">${tile(p)}</div>`).join('')}</div>`}
+function vProfile(){const u=pid||me.id,own=u===me.id,ls=D.lk.filter(l=>l.author===u),n=D.pc.filter(p=>p.owner===u).length,lk=ls.reduce((a,l)=>a+D.li.filter(x=>x.look_id===l.id).length,0);
+return`<div class="pad" style="text-align:center"><div class="av" style="width:72px;height:72px;font-size:30px;margin:auto">${esc(H(u)[0]).toUpperCase()}</div><h2>@${esc(H(u))}</h2><p class="mu">${ls.length} looks · ${n} peças · ${lk} curtidas</p>${own?'<button class="btn g" data-a="logout">Sair</button>':'<button class="btn g" data-a="nav" data-v="feed">← Voltar</button>'}</div>${ls.map(lookCard).join('')||'<p class="mu" style="text-align:center">Nenhum look publicado.</p>'}`}
+function render(){nav();$('#app').innerHTML=`<header><span class="logo">Closelly</span><span class="mu">@${esc(H(me.id))}</span></header>`+({feed:vFeed,closet:vCloset,create:vCreate,profile:vProfile}[view])()}
+const go=v=>{view=v;pid=null;render();scrollTo(0,0)};
+function authUI(msg=''){const s=mode==='signup';$('#modal').innerHTML=`<div class="modal"><div><div class="logo" style="font-size:40px">Closelly</div><p class="mu">Monte looks, compartilhe e inspire outras mulheres.</p>${s?'<input id="ah" placeholder="@usuario (a-z, 0-9, _)" maxlength="20"><br><br>':''}<input id="ae" type="email" placeholder="E-mail"><br><br><input id="ap" type="password" placeholder="Senha (mín. 6 caracteres)"><p class="mu" style="color:var(--ac)">${esc(msg)}</p><button class="btn" data-a="auth" style="width:100%">${s?'Criar conta':'Entrar'}</button><p class="mu" data-a="mode" style="cursor:pointer;margin-top:14px">${s?'Já tem conta? Entrar':'Primeira vez? Criar conta'}</p></div></div>`}
+function resize(file){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(r,'image/jpeg',.8)};im.src=fr.result};fr.readAsDataURL(file)})}
+async function boot(){const {data:{session}}=await sb.auth.getSession();if(!session){authUI();return}
+ me=session.user;await load();if(!D.pr[me.id]){await sb.auth.signOut();authUI('Perfil não encontrado.');return}$('#modal').innerHTML='';render()}
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-a]');if(!t||t.tagName==='FORM')return;const a=t.dataset.a,id=t.dataset.id,l=D.lk.find(x=>x.id===id);
+if(a==='mode'){mode=mode==='login'?'signup':'login';authUI()}
+else if(a==='auth'){const email=$('#ae').value.trim(),password=$('#ap').value;let r;
+ if(mode==='signup'){const h=($('#ah').value||'').trim().replace(/^@/,'').toLowerCase();if(!/^[a-z0-9_]{3,20}$/.test(h))return authUI('Usuário: 3 a 20 letras minúsculas, números ou _');
+  r=await sb.auth.signUp({email,password,options:{data:{handle:h}}});if(r.error)return authUI(r.error.message.includes('duplicate')?'Esse @usuário já existe.':r.error.message);
+  if(!r.data.session)return authUI('Conta criada! Confirme o e-mail e depois entre.')}
+ else{r=await sb.auth.signInWithPassword({email,password});if(r.error)return authUI('E-mail ou senha incorretos.')}
+ boot()}
+else if(a==='logout'){await sb.auth.signOut();location.reload()}
+else if(a==='nav')go(t.dataset.v);
+else if(a==='prof'){view='profile';pid=t.dataset.u;render();scrollTo(0,0)}
+else if(a==='like'){const liked=D.li.some(x=>x.look_id===id&&x.user_id===me.id);const r=liked?await sb.from('likes').delete().match({look_id:id,user_id:me.id}):await sb.from('likes').insert({look_id:id});if(ok(r))refresh()}
+else if(a==='cm'){open[id]=!open[id];render()}
+else if(a==='remix'){draft={ids:[...l.piece_ids],r:id,cap:''};view='create';render();scrollTo(0,0)}
+else if(a==='del'){if(confirm('Apagar este look?')&&ok(await sb.from('looks').delete().eq('id',id)))refresh()}
+else if(a==='share'){const txt=`Olha esse look de @${H(l.author)} no Closelly: ${l.caption||''}`;try{if(navigator.share)await navigator.share({text:txt,url:location.href});else{await navigator.clipboard.writeText(txt+' '+location.href);t.textContent='✓'}}catch(e){}}
+else if(a==='use'){if(!draft.ids.includes(id))draft.ids.push(id);view='create';render()}
+else if(a==='pick'){const i=draft.ids.indexOf(id);i<0?draft.ids.push(id):draft.ids.splice(i,1);draft.cap=$('#cp').value;render()}
+else if(a==='pf'){pf=t.dataset.v;draft.cap=$('#cp').value;render()}
+else if(a==='cat'){cat=t.dataset.v;draft.cap=$('#cp').value;render()}
+else if(a==='clear'){draft={ids:[],r:null};render()}
+else if(a==='pub'){if(!draft.ids.length)return alert('Escolha ao menos uma peça.');if(ok(await sb.from('looks').insert({caption:$('#cp').value||'Meu novo look ✨',piece_ids:draft.ids,remix_of:draft.r}))){draft={ids:[],r:null};await load();go('feed')}}
+else if(a==='addp'){const f=$('#f').files[0],n=$('#pn').value.trim();if(!f||!n)return alert('Envie uma foto e dê um nome à peça.');t.disabled=true;t.textContent='Enviando…';
+ const path=`${me.id}/${Date.now()}.jpg`,up=await sb.storage.from('pieces').upload(path,await resize(f),{contentType:'image/jpeg'});
+ if(ok(up)&&ok(await sb.from('pieces').insert({name:n,category:$('#pc').value,image_url:sb.storage.from('pieces').getPublicUrl(path).data.publicUrl})))await load();render()}});
+document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target.closest('[data-a="comment"]');if(!f)return;const v=f.querySelector('input').value.trim();if(v&&ok(await sb.from('comments').insert({look_id:f.dataset.id,body:v})))refresh()});
+boot();
+</script></body></html>
